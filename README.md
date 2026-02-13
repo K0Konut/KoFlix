@@ -111,6 +111,11 @@ Les règles d’infra sont détaillées dans AGENTS.md (utile aussi pour les age
 
 Ce fichier sert aux agents (ex: Codex) et aux contributeurs pour produire des configs **compatibles** avec mon homelab et mon reverse proxy.
 
+### 🧭 Workflow Git
+- Ne pas coder directement sur `main`.
+- Une branche par feature/fix.
+- PR vers `dev`, puis merge vers `main` après validation.
+
 ## 1) Contexte infrastructure (homelab)
 
 - Proxmox : 192.168.1.210
