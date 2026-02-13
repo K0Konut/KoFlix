@@ -148,3 +148,10 @@ Une PR est acceptée si :
 - README mis à jour si la PR change les commandes ou l’archi
 
 ---
+
+## 10) Workflow Git (obligatoire)
+
+- Ne pas coder directement sur `main`.
+- Créer une branche par feature/fix (ex: `feat/auth`, `fix/watch-progress`).
+- Ouvrir une PR vers la branche `dev`.
+- La branche `dev` est fusionnée vers `main` uniquement après ta validation.
