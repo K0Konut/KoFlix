@@ -21,37 +21,41 @@ Plateforme de streaming **privée** (pour moi et mes proches).
 
 ---
 
-## 📦 Monorepo (structure recommandée)
+## 📦 Monorepo (structure)
+```
 repo/
-apps/
-web/ # Vite + Vue 3 + Tailwind + daisyUI
-api/ # Strapi
-infra/
-docker/ # (optionnel) compose, helpers, etc.
-.env.example
-README.md
-AGENTS.md
+  apps/
+    web/        # Vite + Vue 3 + Tailwind + daisyUI
+    api/        # Strapi
+  infra/        # docker-compose, scripts, docs infra du projet
+  .env.example
+  README.md
+  AGENTS.md
+```
 
 ## 🚀 Démarrage (dev local)
 
 ### Prérequis
 - Node.js (LTS recommandé)
-- pnpm (recommandé) ou npm/yarn
+- npm (ou pnpm/yarn)
 - Docker (optionnel pour DB en local)
+
+Chaque app a ses dépendances. Installe et lance depuis son dossier.
+Si tu préfères pnpm, remplace `npm` par `pnpm`.
 
 ### Lancer le front
 ```bash
 cd apps/web
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 ### Lancer Strapi
 
 ```bash
 cd apps/api
-pnpm install
-pnpm develop
+npm install
+npm run develop
 ```
 
 ---
