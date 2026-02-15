@@ -1,9 +1,26 @@
 <script setup lang="ts">
-const favorites = [
-  { id: '1', name: 'Nebula Drift', year: 2024 },
-  { id: '2', name: 'Arcadia City', year: 2023 },
-  { id: '3', name: 'Signal Lake', year: 2021 },
-]
+import { onMounted, ref } from 'vue'
+import { fetchFavorites, type FavoriteItem } from '../services/favorites'
+
+const favorites = ref<FavoriteItem[]>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+const formatKind = (kind: FavoriteItem['kind']) => (kind === 'series' ? 'Série' : 'Film')
+
+const loadFavorites = async () => {
+  loading.value = true
+  error.value = null
+  try {
+    favorites.value = await fetchFavorites()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Impossible de charger'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadFavorites)
 </script>
 
 <template>
@@ -15,7 +32,13 @@ const favorites = [
       </p>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div v-if="loading" class="text-sm text-base-content/60">
+      Chargement de ta liste...
+    </div>
+    <div v-else-if="error" class="text-sm text-error">
+      {{ error }}
+    </div>
+    <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <div
         v-for="item in favorites"
         :key="item.id"
@@ -25,12 +48,17 @@ const favorites = [
         <div class="flex items-center justify-between">
           <div>
             <p class="font-semibold">{{ item.name }}</p>
-            <p class="text-xs text-base-content/60">{{ item.year }}</p>
+            <p class="text-xs text-base-content/60">
+              {{ formatKind(item.kind) }} · {{ item.year ?? '—' }}
+            </p>
           </div>
-          <RouterLink :to="`/title/${item.id}`" class="btn btn-xs btn-outline">
+          <RouterLink :to="`/title/${item.titleId}`" class="btn btn-xs btn-outline">
             Voir
           </RouterLink>
         </div>
+      </div>
+      <div v-if="favorites.length === 0" class="text-sm text-base-content/60">
+        Aucun favori pour le moment.
       </div>
     </div>
   </section>

@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { fetchTitleById, type TitleDetail } from '../services/api'
+import { addFavorite, fetchFavoriteForTitle, removeFavorite } from '../services/favorites'
+import { useSessionStore } from '../stores/session'
 
 const route = useRoute()
+const router = useRouter()
+const session = useSessionStore()
 
 const title = ref<TitleDetail | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const favoriteId = ref<number | null>(null)
+const favoriteLoading = ref(false)
+const favoriteError = ref<string | null>(null)
 
 const formatKind = (kind: TitleDetail['kind']) => (kind === 'series' ? 'Série' : 'Film')
 
@@ -25,6 +32,7 @@ const loadTitle = async (id: string | string[]) => {
   if (!resolvedId) return
   loading.value = true
   error.value = null
+  favoriteId.value = null
   try {
     title.value = await fetchTitleById(resolvedId)
   } catch (err) {
@@ -34,10 +42,61 @@ const loadTitle = async (id: string | string[]) => {
   }
 }
 
+const loadFavorite = async () => {
+  if (!session.isAuthenticated || !title.value) return
+  favoriteError.value = null
+  favoriteLoading.value = true
+  try {
+    const favorite = await fetchFavoriteForTitle(title.value.id)
+    favoriteId.value = favorite?.id ?? null
+  } catch (err) {
+    favoriteError.value = err instanceof Error ? err.message : 'Impossible de charger'
+  } finally {
+    favoriteLoading.value = false
+  }
+}
+
+const toggleFavorite = async () => {
+  if (!title.value) return
+  if (!session.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: `/title/${title.value.id}` } })
+    return
+  }
+  favoriteLoading.value = true
+  favoriteError.value = null
+  try {
+    if (favoriteId.value) {
+      await removeFavorite(favoriteId.value)
+      favoriteId.value = null
+    } else {
+      const favorite = await addFavorite(title.value.id)
+      favoriteId.value = favorite.id
+    }
+  } catch (err) {
+    favoriteError.value = err instanceof Error ? err.message : 'Impossible de mettre à jour'
+  } finally {
+    favoriteLoading.value = false
+  }
+}
+
 onMounted(() => loadTitle(route.params.id))
 watch(
   () => route.params.id,
   (value) => loadTitle(value),
+)
+watch(
+  () => title.value?.id,
+  () => loadFavorite(),
+)
+watch(
+  () => session.isAuthenticated,
+  (isAuthed) => {
+    if (isAuthed) {
+      loadFavorite()
+    } else {
+      favoriteId.value = null
+    }
+  },
 )
 </script>
 
@@ -83,8 +142,17 @@ watch(
             >
               Lecture
             </RouterLink>
-            <button class="btn btn-outline">Ajouter à ma liste</button>
+            <button class="btn btn-outline" type="button" :disabled="favoriteLoading" @click="toggleFavorite">
+              {{
+                favoriteId
+                  ? 'Retirer de ma liste'
+                  : favoriteLoading
+                    ? 'Mise à jour...'
+                    : 'Ajouter à ma liste'
+              }}
+            </button>
           </div>
+          <p v-if="favoriteError" class="text-xs text-error">{{ favoriteError }}</p>
         </div>
       </div>
 

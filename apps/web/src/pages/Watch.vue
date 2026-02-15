@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchEpisodeById, fetchTitleById, type EpisodeDetail, type TitleDetail } from '../services/api'
 import { fetchProgressEntry, saveProgressEntry } from '../services/progress'
+import { addFavorite, fetchFavoriteForTitle, removeFavorite } from '../services/favorites'
+import { useSessionStore } from '../stores/session'
 
 const route = useRoute()
 const videoRef = ref<HTMLVideoElement | null>(null)
@@ -12,6 +14,9 @@ const error = ref<string | null>(null)
 
 const currentTitle = ref<TitleDetail | null>(null)
 const currentEpisode = ref<EpisodeDetail | null>(null)
+const session = useSessionStore()
+const favoriteId = ref<number | null>(null)
+const favoriteLoading = ref(false)
 
 const progressId = ref<number | null>(null)
 const savedProgressSeconds = ref(0)
@@ -42,6 +47,7 @@ const loadWatch = async (rawId: string | string[] | undefined) => {
   progressId.value = null
   savedProgressSeconds.value = 0
   lastSavedSeconds.value = 0
+  favoriteId.value = null
 
   try {
     currentEpisode.value = await fetchEpisodeById(resolvedId)
@@ -70,6 +76,15 @@ const loadWatch = async (rawId: string | string[] | undefined) => {
     }
   } catch {
     // Silent: progress is best-effort, UI should still load.
+  }
+
+  try {
+    if (session.isAuthenticated && titleId.value) {
+      const favorite = await fetchFavoriteForTitle(titleId.value)
+      favoriteId.value = favorite?.id ?? null
+    }
+  } catch {
+    // Silent: favorite is best-effort here.
   }
 }
 
@@ -129,6 +144,22 @@ const stopAutosave = () => {
   }
 }
 
+const toggleFavorite = async () => {
+  if (!titleId.value) return
+  favoriteLoading.value = true
+  try {
+    if (favoriteId.value) {
+      await removeFavorite(favoriteId.value)
+      favoriteId.value = null
+    } else {
+      const favorite = await addFavorite(titleId.value)
+      favoriteId.value = favorite.id
+    }
+  } finally {
+    favoriteLoading.value = false
+  }
+}
+
 onMounted(() => {
   void loadWatch(route.params.id)
   startAutosave()
@@ -164,7 +195,9 @@ onBeforeUnmount(() => {
           <p class="text-sm text-base-content/60">{{ subtitle }}</p>
         </div>
         <div class="flex gap-2">
-          <button class="btn btn-outline btn-sm">Ajouter à ma liste</button>
+          <button class="btn btn-outline btn-sm" type="button" :disabled="favoriteLoading" @click="toggleFavorite">
+            {{ favoriteId ? 'Retirer de ma liste' : 'Ajouter à ma liste' }}
+          </button>
           <RouterLink
             v-if="titleId"
             :to="`/title/${titleId}`"
