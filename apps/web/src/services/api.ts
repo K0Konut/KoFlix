@@ -62,6 +62,25 @@ type StrapiTitle = {
   }
 }
 
+type StrapiEpisode = {
+  name: string
+  number: number
+  synopsis?: string
+  duration?: number
+  releaseDate?: string
+  video?: StrapiMedia
+  season?: {
+    data: StrapiEntity<{
+      number: number
+      title?: {
+        data: StrapiEntity<{
+          name: string
+        }> | null
+      }
+    }> | null
+  }
+}
+
 export type TitleCard = {
   id: number
   name: string
@@ -92,6 +111,20 @@ export type TitleDetail = TitleCard & {
       videoUrl?: string
     }>
   }>
+}
+
+export type EpisodeDetail = {
+  id: number
+  name: string
+  number: number
+  synopsis?: string
+  duration?: number
+  videoUrl?: string
+  seasonNumber?: number
+  title?: {
+    id: number
+    name: string
+  }
 }
 
 const resolveMediaUrl = (media?: StrapiMedia) => {
@@ -136,6 +169,27 @@ const mapTitleDetail = (entity: StrapiEntity<StrapiTitle>): TitleDetail => ({
     })) ?? [],
 })
 
+const mapEpisodeDetail = (entity: StrapiEntity<StrapiEpisode>): EpisodeDetail => {
+  const season = entity.attributes.season?.data
+  const title = season?.attributes.title?.data
+
+  return {
+    id: entity.id,
+    name: entity.attributes.name,
+    number: entity.attributes.number,
+    synopsis: entity.attributes.synopsis,
+    duration: entity.attributes.duration,
+    videoUrl: resolveMediaUrl(entity.attributes.video),
+    seasonNumber: season?.attributes.number,
+    title: title
+      ? {
+          id: title.id,
+          name: title.attributes.name,
+        }
+      : undefined,
+  }
+}
+
 export const buildUrl = (path: string, params?: Record<string, string>) => {
   if (!API_BASE_URL) {
     throw new Error('VITE_API_URL is not set')
@@ -150,7 +204,7 @@ export const buildUrl = (path: string, params?: Record<string, string>) => {
   return url.toString()
 }
 
-const fetchJson = async <T>(path: string, params?: Record<string, string>) => {
+export const apiFetchJson = async <T>(path: string, params?: Record<string, string>) => {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY)
   const response = await fetch(buildUrl(path, params), {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -158,7 +212,9 @@ const fetchJson = async <T>(path: string, params?: Record<string, string>) => {
 
   if (!response.ok) {
     const text = await response.text()
-    throw new Error(text || `Request failed (${response.status})`)
+    const error = new Error(text || `Request failed (${response.status})`)
+    ;(error as Error & { status?: number }).status = response.status
+    throw error
   }
 
   return (await response.json()) as T
@@ -176,7 +232,7 @@ export const fetchTitles = async (options?: { featured?: boolean }) => {
     params['filters[isFeatured][$eq]'] = 'true'
   }
 
-  const response = await fetchJson<StrapiResponse<Array<StrapiEntity<StrapiTitle>>>>(
+  const response = await apiFetchJson<StrapiResponse<Array<StrapiEntity<StrapiTitle>>>>(
     'api/titles',
     params,
   )
@@ -194,10 +250,24 @@ export const fetchTitleById = async (id: string | number) => {
     'populate[seasons][populate][episodes][populate]': '*',
   }
 
-  const response = await fetchJson<StrapiResponse<StrapiEntity<StrapiTitle>>>(
+  const response = await apiFetchJson<StrapiResponse<StrapiEntity<StrapiTitle>>>(
     `api/titles/${id}`,
     params,
   )
 
   return mapTitleDetail(response.data)
+}
+
+export const fetchEpisodeById = async (id: string | number) => {
+  const params: Record<string, string> = {
+    'populate[video]': '*',
+    'populate[season][populate][title]': '*',
+  }
+
+  const response = await apiFetchJson<StrapiResponse<StrapiEntity<StrapiEpisode>>>(
+    `api/episodes/${id}`,
+    params,
+  )
+
+  return mapEpisodeDetail(response.data)
 }

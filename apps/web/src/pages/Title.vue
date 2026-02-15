@@ -12,6 +12,13 @@ const error = ref<string | null>(null)
 const formatKind = (kind: TitleDetail['kind']) => (kind === 'series' ? 'Série' : 'Film')
 
 const firstSeasonEpisodes = computed(() => title.value?.seasons?.[0]?.episodes ?? [])
+const primaryWatchId = computed(() => {
+  if (!title.value) return undefined
+  if (title.value.kind === 'series') {
+    return firstSeasonEpisodes.value[0]?.id ?? title.value.id
+  }
+  return title.value.id
+})
 
 const loadTitle = async (id: string | string[]) => {
   const resolvedId = Array.isArray(id) ? id[0] : id
@@ -69,7 +76,13 @@ watch(
             <p class="text-sm">{{ title.cast.join(' · ') }}</p>
           </div>
           <div class="flex flex-wrap gap-3">
-            <RouterLink :to="`/watch/${title.id}`" class="btn btn-primary">Lecture</RouterLink>
+            <RouterLink
+              v-if="primaryWatchId"
+              :to="`/watch/${primaryWatchId}`"
+              class="btn btn-primary"
+            >
+              Lecture
+            </RouterLink>
             <button class="btn btn-outline">Ajouter à ma liste</button>
           </div>
         </div>
