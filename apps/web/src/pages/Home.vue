@@ -1,9 +1,10 @@
 <script setup lang="ts">
-const featured = [
-  { id: '1', title: 'Nebula Drift', kind: 'Film', year: 2024 },
-  { id: '2', title: 'Arcadia City', kind: 'Série', year: 2023 },
-  { id: '3', title: 'Riftline', kind: 'Film', year: 2022 },
-]
+import { onMounted, ref } from 'vue'
+import { fetchTitles, type TitleCard } from '../services/api'
+
+const featured = ref<TitleCard[]>([])
+const loadingFeatured = ref(true)
+const errorFeatured = ref<string | null>(null)
 
 const continueWatching = [
   { id: '4', title: 'Atlas 9', progress: 62 },
@@ -11,6 +12,22 @@ const continueWatching = [
   { id: '6', title: 'Signal Lake', progress: 83 },
   { id: '7', title: 'The Violet Room', progress: 45 },
 ]
+
+const formatKind = (kind: TitleCard['kind']) => (kind === 'series' ? 'Série' : 'Film')
+
+const loadFeatured = async () => {
+  loadingFeatured.value = true
+  errorFeatured.value = null
+  try {
+    featured.value = await fetchTitles({ featured: true })
+  } catch (error) {
+    errorFeatured.value = error instanceof Error ? error.message : 'Impossible de charger'
+  } finally {
+    loadingFeatured.value = false
+  }
+}
+
+onMounted(loadFeatured)
 </script>
 
 <template>
@@ -54,20 +71,31 @@ const continueWatching = [
     <div class="rounded-3xl border border-base-300/70 bg-base-200/60 p-6">
       <h2 class="mb-4 text-lg font-display">Sélection du moment</h2>
       <div class="space-y-4">
-        <div
-          v-for="item in featured"
-          :key="item.id"
-          class="flex items-center justify-between rounded-2xl border border-base-300/60 bg-base-100/40 px-4 py-3"
-        >
-          <div>
-            <p class="font-semibold">{{ item.title }}</p>
-            <p class="text-xs text-base-content/60">
-              {{ item.kind }} · {{ item.year }}
-            </p>
+        <div v-if="loadingFeatured" class="text-sm text-base-content/60">
+          Chargement des titres en vedette...
+        </div>
+        <div v-else-if="errorFeatured" class="text-sm text-error">
+          {{ errorFeatured }}
+        </div>
+        <template v-else>
+          <div
+            v-for="item in featured"
+            :key="item.id"
+            class="flex items-center justify-between rounded-2xl border border-base-300/60 bg-base-100/40 px-4 py-3"
+          >
+            <div>
+              <p class="font-semibold">{{ item.name }}</p>
+              <p class="text-xs text-base-content/60">
+                {{ formatKind(item.kind) }} · {{ item.year ?? '—' }}
+              </p>
+            </div>
+            <RouterLink :to="`/title/${item.id}`" class="btn btn-xs btn-outline">
+              Détails
+            </RouterLink>
           </div>
-          <RouterLink :to="`/title/${item.id}`" class="btn btn-xs btn-outline">
-            Détails
-          </RouterLink>
+        </template>
+        <div v-if="!loadingFeatured && !errorFeatured && featured.length === 0" class="text-sm text-base-content/60">
+          Aucun titre en vedette pour le moment.
         </div>
       </div>
     </div>

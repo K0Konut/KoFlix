@@ -1,14 +1,38 @@
 <script setup lang="ts">
-const genres = ['Sci-Fi', 'Thriller', 'Drama', 'Animation', 'Documentaire']
+import { computed, onMounted, ref } from 'vue'
+import { fetchTitles, type TitleCard } from '../services/api'
 
-const titles = [
-  { id: '1', name: 'Nebula Drift', year: 2024, kind: 'Film' },
-  { id: '2', name: 'Arcadia City', year: 2023, kind: 'Série' },
-  { id: '3', name: 'Riftline', year: 2022, kind: 'Film' },
-  { id: '4', name: 'Signal Lake', year: 2021, kind: 'Série' },
-  { id: '5', name: 'The Violet Room', year: 2020, kind: 'Film' },
-  { id: '6', name: 'Atlas 9', year: 2019, kind: 'Série' },
-]
+const titles = ref<TitleCard[]>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+const fallbackGenres = ['Sci-Fi', 'Thriller', 'Drama', 'Animation', 'Documentaire']
+
+const genres = computed(() => {
+  if (!titles.value.length) return fallbackGenres
+  const genreSet = new Set<string>()
+  titles.value.forEach((title) => {
+    if (title.kind === 'movie') genreSet.add('Film')
+    if (title.kind === 'series') genreSet.add('Série')
+  })
+  return Array.from(genreSet)
+})
+
+const formatKind = (kind: TitleCard['kind']) => (kind === 'series' ? 'Série' : 'Film')
+
+const loadTitles = async () => {
+  loading.value = true
+  error.value = null
+  try {
+    titles.value = await fetchTitles()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Impossible de charger'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadTitles)
 </script>
 
 <template>
@@ -47,22 +71,38 @@ const titles = [
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <article
-        v-for="title in titles"
-        :key="title.id"
-        class="rounded-2xl border border-base-300/70 bg-base-200/60 p-4"
-      >
-        <div class="mb-3 h-40 rounded-xl bg-base-300/60"></div>
-        <div class="flex items-center justify-between">
-          <div>
-            <h3 class="font-semibold">{{ title.name }}</h3>
-            <p class="text-xs text-base-content/60">{{ title.kind }} · {{ title.year }}</p>
+      <div v-if="loading" class="text-sm text-base-content/60">
+        Chargement du catalogue...
+      </div>
+      <div v-else-if="error" class="text-sm text-error">
+        {{ error }}
+      </div>
+      <template v-else>
+        <article
+          v-for="title in titles"
+          :key="title.id"
+          class="rounded-2xl border border-base-300/70 bg-base-200/60 p-4"
+        >
+          <div
+            class="mb-3 h-40 overflow-hidden rounded-xl bg-base-300/60"
+            :style="title.posterUrl ? { backgroundImage: `url(${title.posterUrl})`, backgroundSize: 'cover' } : undefined"
+          ></div>
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-semibold">{{ title.name }}</h3>
+              <p class="text-xs text-base-content/60">
+                {{ formatKind(title.kind) }} · {{ title.year ?? '—' }}
+              </p>
+            </div>
+            <RouterLink :to="`/title/${title.id}`" class="btn btn-xs btn-outline">
+              Voir
+            </RouterLink>
           </div>
-          <RouterLink :to="`/title/${title.id}`" class="btn btn-xs btn-outline">
-            Voir
-          </RouterLink>
+        </article>
+        <div v-if="titles.length === 0" class="text-sm text-base-content/60">
+          Aucun titre disponible pour le moment.
         </div>
-      </article>
+      </template>
     </div>
   </section>
 </template>
