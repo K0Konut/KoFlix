@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { useSessionStore } from './stores/session'
 
 const session = useSessionStore()
+const router = useRouter()
+
+const logout = () => {
+  session.clear()
+  router.push('/')
+}
 </script>
 
 <template>
@@ -41,6 +47,14 @@ const session = useSessionStore()
           >
             Mon espace
           </RouterLink>
+          <button
+            v-if="session.isAuthenticated"
+            class="btn btn-ghost btn-sm"
+            type="button"
+            @click="logout"
+          >
+            Déconnexion
+          </button>
           <RouterLink
             v-else
             to="/login"

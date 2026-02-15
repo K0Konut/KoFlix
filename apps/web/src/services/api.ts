@@ -10,7 +10,7 @@ const normalizeBaseUrl = (value: string) => {
   return trimmed.endsWith('/') ? trimmed : `${trimmed}/`
 }
 
-const API_BASE_URL = RAW_BASE_URL ? normalizeBaseUrl(RAW_BASE_URL) : ''
+export const API_BASE_URL = RAW_BASE_URL ? normalizeBaseUrl(RAW_BASE_URL) : ''
 
 type StrapiEntity<T> = {
   id: number
@@ -136,7 +136,7 @@ const mapTitleDetail = (entity: StrapiEntity<StrapiTitle>): TitleDetail => ({
     })) ?? [],
 })
 
-const buildUrl = (path: string, params?: Record<string, string>) => {
+export const buildUrl = (path: string, params?: Record<string, string>) => {
   if (!API_BASE_URL) {
     throw new Error('VITE_API_URL is not set')
   }
